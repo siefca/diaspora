@@ -12,7 +12,9 @@ class ApplicationController < ActionController::Base
   before_filter :set_locale
   before_filter :set_git_header
   before_filter :which_action_and_user
+  before_filter :set_grammatical_gender
   prepend_before_filter :clear_gc_stats
+  inflection_method :grammatical_gender => :gender
 
   def set_contacts_notifications_and_status
     if user_signed_in?
@@ -58,6 +60,29 @@ class ApplicationController < ActionController::Base
       I18n.locale = request.compatible_language_from AVAILABLE_LANGUAGE_CODES
     end
   end
+
+  def set_grammatical_gender
+    if (user_signed_in? && I18n.inflector.inflected_locale?)
+      gender = current_user.profile.gender.to_s.tr('!()[]"\'`*=|/\#.,-:', '').downcase
+      unless gender.empty?
+        i_langs = I18n.inflector.inflected_locales(:gender)
+        i_langs.delete  I18n.locale
+        i_langs.unshift I18n.locale
+        i_langs.each do |lang|
+          token = I18n.inflector.true_token(gender, :gender, lang)
+          unless token.nil?
+            @grammatical_gender = token
+            break
+          end
+        end
+      end
+    end
+  end
+
+  def grammatical_gender
+    @grammatical_gender || nil
+  end
+
   def clear_gc_stats
     GC.clear_stats if GC.respond_to?(:clear_stats)
   end
@@ -68,4 +93,5 @@ class ApplicationController < ActionController::Base
       redirect_to root_url
     end
   end
+
 end
